@@ -42,6 +42,10 @@ training_images_not_five = training_images_not_five[mask_not_five]
 training_images_not_five_set_2 = training_images_not_five[mask_90_percent]
 training_labels_not_five = training_labels_not_five[mask_not_five]
 training_labels_not_five_set_2 = training_labels_not_five[mask_90_percent]
+training_labels_not_five_set_2.fill(9)
+
+training_images = np.vstack((training_images_is_five_set_1, training_images_not_five_set_2))
+training_labels = np.append(training_labels_is_five_set_1, training_labels_not_five_set_2)
 
 mask_10_percent = np.logical_not(mask_90_percent)
 testing_images_set_1 = training_images_is_five[mask_10_percent]
@@ -49,10 +53,71 @@ testing_images_set_2 = training_images_not_five[mask_10_percent]
 testing_labels_set_1 = training_labels_is_five[mask_10_percent]
 testing_labels_set_2 = training_labels_not_five[mask_10_percent]
 
-training_images = np.vstack((training_images_is_five_set_1, training_images_not_five_set_2))
-training_labels = np.append(training_labels_is_five_set_1, training_labels_not_five_set_2)
-
 testing_images = np.vstack((testing_images_set_1, testing_images_set_2))
 testing_labels = np.append(testing_labels_set_1, testing_labels_set_2)
+
 # img = Image.fromarray(training_images[5].reshape((28,28)))
 # img.show()
+
+unique_elem, counts = np.unique(training_labels, return_counts = True)
+priors = np.append(unique_elem.reshape(2,1), counts.reshape(2,1), 1)
+
+label_5_summary = np.array((-9,-9))
+label_9_summary = np.array((-9,-9))
+v0 = np.var(training_images_is_five_set_1)
+v1 = np.var(training_images_not_five_set_2)
+for pixel in range(28*28):
+    m5 = np.mean(training_images_is_five_set_1[:, pixel])
+    v5 = np.var(training_images_is_five_set_1[:, pixel])
+    label_5_summary = np.vstack((label_5_summary, np.array((m5, v5))))
+
+    m9 = np.mean(training_images_not_five_set_2[:, pixel])
+    v9 = np.var(training_images_not_five_set_2[:, pixel])
+    label_9_summary = np.vstack((label_9_summary, np.array((m9, v9))))
+    
+label_5_summary = label_5_summary[1:, :]
+label_9_summary = label_9_summary[1:, :]
+
+def pdf(x, mean, var):
+    exp = math.exp(-math.pow(x - mean, 2)/(2 * var))
+    pdf = (1 / math.sqrt(2 * math.pi * var)) * exp
+    return pdf
+
+def classify(test_set, priors, summary_5, summary_9):
+    prediction = []
+
+    for image in test_set:
+        max_pros_class = (-1E6, -1)
+        for label in range(2):
+            log_prior = math.log(priors[label][1]/training_images.shape[0])
+            p = log_prior
+            for pixel in range(28 * 28):
+                if label == 0:
+                    mean = summary_5[pixel][0]
+                    var = v0
+                else:
+                    mean = summary_9[pixel][0]
+                    var = v1
+
+                if pdf(image[pixel],mean,var) > 0:
+                    p += math.log(pdf(image[pixel],mean,var))
+            
+            if p > max_pros_class[0]:
+                max_pros_class = (p, label)
+                prediction.append(max_pros_class)
+    prediction = np.array(prediction, dtype = 'int16')
+    return prediction[:,1]
+
+result = classify(testing_images, priors, label_5_summary, label_9_summary)
+
+correct = 0
+testing_labels[testing_labels != 5] = 1
+testing_labels[testing_labels == 5] = 0
+
+for i in range(160):
+    if result[i] == testing_labels[i]:
+        correct += 1
+
+print(correct)
+print(testing_images.shape[0])
+print(correct/testing_images.shape[0])

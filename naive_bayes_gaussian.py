@@ -58,10 +58,15 @@ training_labels[training_labels != 5] = 9
 unique_elem, counts = np.unique(training_labels, return_counts = True)
 priors = np.append(unique_elem.reshape(2,1), counts.reshape(2,1), 1)
 
+temp = np.array(priors[0])
+priors[0] = priors[1]
+priors[1] = temp
+
 label_5_summary = np.array((-9,-9))
 label_9_summary = np.array((-9,-9))
-v0 = np.var(training_images[training_labels == 5])
-v1 = np.var(training_images[training_labels != 5])
+
+v0 = np.var(training_images[training_labels != 5])
+v1 = np.var(training_images[training_labels == 5])
 
 training_images_is_five = training_images[training_labels == 5]
 training_images_not_five = training_images[training_labels != 5]
@@ -93,10 +98,10 @@ def classify(test_set, priors, summary_5, summary_9):
             p = log_prior
             for pixel in range(28 * 28):
                 if label == 0:
-                    mean = summary_5[pixel][0]
+                    mean = summary_9[pixel][0]
                     var = v0
                 else:
-                    mean = summary_9[pixel][0]
+                    mean = summary_5[pixel][0]
                     var = v1
 
                 if pdf(image[pixel],mean,var) > 0:

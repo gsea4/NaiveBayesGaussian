@@ -71,6 +71,9 @@ v1 = np.var(training_images[training_labels == 5])
 training_images_is_five = training_images[training_labels == 5]
 training_images_not_five = training_images[training_labels != 5]
 
+testing_labels[testing_labels != 5] = 0
+testing_labels[testing_labels == 5] = 1
+
 for pixel in range(28*28):
     m5 = np.mean(training_images_is_five[:, pixel])
     v5 = np.var(training_images_is_five[:, pixel])
@@ -89,13 +92,18 @@ def pdf(x, mean, var):
     return pdf
 
 count = 0
-def classify(test_set, priors, summary_5, summary_9):
+def classify(test_set, priors, summary_5, summary_9, error_rate):
     prediction = []
     for image in test_set:
         max_pros_class = (-math.inf, -1)
+        likelihood_0 = 0
+        likelihood_1 = 0
+        max_pros_0 = 0
+        max_pros_1 = 0
         for label in range(2):
             log_prior = math.log(priors[label][1])
             p = log_prior
+            # p = priors[label][1]
             for pixel in range(28 * 28):
                 if label == 0:
                     mean = summary_9[pixel][0]
@@ -106,24 +114,92 @@ def classify(test_set, priors, summary_5, summary_9):
 
                 if pdf(image[pixel],mean,var) > 0:
                     p += math.log(pdf(image[pixel],mean,var))
-            
-            if p > max_pros_class[0]:
-                max_pros_class = (p, label)
+                    # p *= pdf(image[pixel], mean, var)
+            if label == 0:
+                likelihood_0 = p
+                max_pros_0 = (p, label)
+            else:
+                likelihood_1 = p
+                max_pros_1 = (p, label)
+
+            # if p > max_pros_class[0]:
+            #     max_pros_class = (p, label)
+
+        # t1 = likelihood_1/likelihood_0
+        # t2 = priors[0][1]/priors[1][1]
+        # if (likelihood_1/likelihood_0) >= (math.log(priors[0][1]))/math.log((priors[1][1])) * error_rate:
+        # if (likelihood_1/likelihood_0) >= (priors[0][1]/priors[1][1]) * error_rate:
+        # if (likelihood_1/likelihood_0) >= math.log(priors[0][1]/priors[1][1]) * error_rate:
+        total_priors = priors[0][1] + priors[1][1]
+        prior0 = priors[0][1]/total_priors
+        prior1 = priors[1][1]/total_priors
+        if (likelihood_1/likelihood_0) >= math.log(prior0)/math.log(prior1) * error_rate:
+            max_pros_class = max_pros_1
+        else:
+            max_pros_class = max_pros_0
 
         prediction.append(max_pros_class)   
     prediction = np.array(prediction, dtype = 'int16')
     return prediction[:,1]
 
-result = classify(testing_images, priors, label_5_summary, label_9_summary)
+def calculateTPRandFPR(pred, labels):
+    FP = 0
+    FN = 0
+    TP = 0
+    TN = 0
 
-correct = 0
-testing_labels[testing_labels != 5] = 0
-testing_labels[testing_labels == 5] = 1
+    for i in range(testing_labels.shape[0]):
+        # print("Pred is {} | Label is {}".format(pred[i], testing_labels[i]))
+        if pred[i] == 1 and testing_labels[i] == 0:
+            FP += 1
+        elif pred[i] == 0 and testing_labels[i] == 1:
+            FN += 1
+        elif pred[i] == 1 and testing_labels[i] == 1:
+            TP += 1
+        else:
+            TN += 1
+        
+    N_pos = TP + FN
+    N_neg = TN + FP
 
-for i in range(testing_labels.shape[0]):
-    if result[i] == testing_labels[i]:
-        correct += 1
+    FPR = float(FP/N_neg)
+    TPR = float(TP/N_pos)
+    return TPR, FPR
 
-print(correct)
-print(testing_images.shape[0])
-print(correct/testing_images.shape[0])
+def calculateAccuracy(pred, testing_labels):
+    correct = 0
+
+    for i in range(testing_labels.shape[0]):
+        if pred[i] == testing_labels[i]:
+            correct += 1
+
+    print(correct)
+    print(testing_images.shape[0])
+    print(correct/testing_images.shape[0])
+    return float(correct/testing_images.shape[0])
+
+
+result1 = classify(testing_images, priors, label_5_summary, label_9_summary, 5)
+TPR1, FPR1 = calculateTPRandFPR(result1, testing_labels)
+calculateAccuracy(result1, testing_labels)
+
+result2 = classify(testing_images, priors, label_5_summary, label_9_summary, 2)
+TPR2, FPR2 = calculateTPRandFPR(result2, testing_labels)
+calculateAccuracy(result2, testing_labels)
+
+result3 = classify(testing_images, priors, label_5_summary, label_9_summary, 1)
+TPR3, FPR3 = calculateTPRandFPR(result3, testing_labels)
+calculateAccuracy(result3, testing_labels)
+
+result4 = classify(testing_images, priors, label_5_summary, label_9_summary, 0.5)
+TPR4, FPR4 = calculateTPRandFPR(result4, testing_labels)
+calculateAccuracy(result4, testing_labels)
+
+result5 = classify(testing_images, priors, label_5_summary, label_9_summary, 0.2)
+TPR5, FPR5 = calculateTPRandFPR(result5, testing_labels)
+calculateAccuracy(result5, testing_labels)
+
+x = np.array([FPR1, FPR2, FPR3, FPR4, FPR5])
+y = np.array([TPR1, TPR2, TPR3, TPR4, TPR5])
+plt.plot(x, y)
+plt.show()

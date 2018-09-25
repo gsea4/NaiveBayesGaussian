@@ -52,8 +52,6 @@ training_images = training_images[:, :784]
 testing_labels = testing_images[:, 784]
 testing_images = testing_images[:, :784]
 
-# img = Image.fromarray(training_images[5].reshape((28,28)))
-# img.show()
 training_labels[training_labels != 5] = 9
 unique_elem, counts = np.unique(training_labels, return_counts = True)
 priors = np.append(unique_elem.reshape(2,1), counts.reshape(2,1), 1)
@@ -101,7 +99,7 @@ def classify(test_set, priors, summary_5, summary_9, error_rate):
         max_pros_0 = 0
         max_pros_1 = 0
         for label in range(2):
-            log_prior = math.log(priors[label][1])
+            log_prior = math.log(priors[label][1]/priors[0][1] + priors[1][1])
             p = log_prior
             # p = priors[label][1]
             for pixel in range(28 * 28):
@@ -121,15 +119,9 @@ def classify(test_set, priors, summary_5, summary_9, error_rate):
             else:
                 likelihood_1 = p
                 max_pros_1 = (p, label)
-
             # if p > max_pros_class[0]:
             #     max_pros_class = (p, label)
 
-        # t1 = likelihood_1/likelihood_0
-        # t2 = priors[0][1]/priors[1][1]
-        # if (likelihood_1/likelihood_0) >= (math.log(priors[0][1]))/math.log((priors[1][1])) * error_rate:
-        # if (likelihood_1/likelihood_0) >= (priors[0][1]/priors[1][1]) * error_rate:
-        # if (likelihood_1/likelihood_0) >= math.log(priors[0][1]/priors[1][1]) * error_rate:
         total_priors = priors[0][1] + priors[1][1]
         prior0 = priors[0][1]/total_priors
         prior1 = priors[1][1]/total_priors
@@ -149,7 +141,6 @@ def calculateTPRandFPR(pred, labels):
     TN = 0
 
     for i in range(testing_labels.shape[0]):
-        # print("Pred is {} | Label is {}".format(pred[i], testing_labels[i]))
         if pred[i] == 1 and testing_labels[i] == 0:
             FP += 1
         elif pred[i] == 0 and testing_labels[i] == 1:
@@ -162,8 +153,11 @@ def calculateTPRandFPR(pred, labels):
     N_pos = TP + FN
     N_neg = TN + FP
 
+    print("FP = {} | FN = {} | TP = {} | TN = {}".format(FP, FN, TP, TN))
+    print("N_neg = {} | N_pos = {}".format(N_neg, N_pos))
     FPR = float(FP/N_neg)
     TPR = float(TP/N_pos)
+    print("FPR = {} | TPR = {}".format(FPR, TPR))
     return TPR, FPR
 
 def calculateAccuracy(pred, testing_labels):
